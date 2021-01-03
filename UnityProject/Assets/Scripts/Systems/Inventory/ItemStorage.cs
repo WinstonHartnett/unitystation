@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Items;
 
 /// <summary>
 /// Allows an object to store items.
@@ -41,8 +42,8 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	[FormerlySerializedAs("ItemStoragePopulator")]
 	[SerializeField]
 	[Tooltip("Defines how the storage should be populated when the object spawns. You can also" +
-	         " invoke Populate to manually / dynamically populate this storage using a supplied populator." +
-	         " This will only run server side.")]
+			 " invoke Populate to manually / dynamically populate this storage using a supplied populator." +
+			 " This will only run server side.")]
 	private ItemStoragePopulator itemStoragePopulator = null;
 
 	/// <summary>
@@ -149,7 +150,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		if (itemStorageStructure == null)
 		{
 			Logger.LogErrorFormat("{0} has ItemStorage but no defined ItemStorageStructure. Item storage will not work." +
-			                      " Please define an ItemStorageStructure for this prefab.", Category.Inventory, name);
+								  " Please define an ItemStorageStructure for this prefab.", Category.Inventory, name);
 			return;
 		}
 
@@ -262,17 +263,17 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	{
 		if (slot.Item == null)
 		{
-			return new[] {slot};
+			return new[] { slot };
 		}
 
 		var itemStorage = slot.Item.GetComponent<ItemStorage>();
 		if (itemStorage != null)
 		{
-			return itemStorage.GetItemSlots().Concat(new[] {slot});
+			return itemStorage.GetItemSlots().Concat(new[] { slot });
 		}
 		else
 		{
-			return new[] {slot};
+			return new[] { slot };
 		}
 	}
 
@@ -366,6 +367,34 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return GetBestSlotFor(item);
 	}
 
+	// TODO Should this be separated into another function or should it not force an update (at the risk of this being stale)?
+	// TODO Make this work w/ stackables!
+	/// <summary>
+	/// Returns the combined weight of items in this ItemStorage and updates the corresponding class variable.
+	/// This uses the recursive <see cref="GetItemSlotTree()"> so might be prone to perf issues!
+	/// </summary>
+	public int GetCombinedItemWeight()
+	{
+		var combinedItemWeight = 0;
+
+		foreach (ItemSlot itemSlot in GetItemSlotTree())
+		{
+			Pickupable item = itemSlot.Item;
+
+			if (item != null)
+			{
+				ItemAttributesV2 itemAttr = item.GetComponent<ItemAttributesV2>();
+				if (itemAttr != null)
+				{
+					int size = (int)itemAttr.Size;
+					combinedItemWeight += size;
+				}
+			}
+		}
+
+		return combinedItemWeight;
+	}
+
 	/// <summary>
 	/// Gets all slots in which a gas container can be stored and used
 	/// </summary>
@@ -379,7 +408,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	/// <summary>
 	/// Slots gas containers can be used from.
 	/// </summary>
-	public static readonly NamedSlot[] GasUseSlots = 	{NamedSlot.leftHand, NamedSlot.rightHand, NamedSlot.storage01, NamedSlot.storage02, NamedSlot.storage03,
+	public static readonly NamedSlot[] GasUseSlots =    {NamedSlot.leftHand, NamedSlot.rightHand, NamedSlot.storage01, NamedSlot.storage02, NamedSlot.storage03,
 		NamedSlot.suitStorage, NamedSlot.back, NamedSlot.belt};
 
 	/// <summary>

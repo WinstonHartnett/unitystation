@@ -401,7 +401,16 @@ public class ItemSlot
 			return stackResult;
 		}
 
-
+		if (itemStorage.GetCombinedItemWeight() > itemStorage.ItemStorageCapacity.MaxCombinedItemWeight)
+		{
+			if (examineRecipient)
+			{
+				Chat.AddExamineMsg(examineRecipient, $"{toStore.gameObject.ExpensiveName()} doesn't fit in the {ItemStorage.gameObject.ExpensiveName()}");
+			}
+			Logger.LogTraceFormat("Attempted to add {0} to slot {1} that would exceed inventory's maximum combined item weight." +
+								  "Move will not be performed.", Category.Inventory, toStore.name, this);
+			return false;
+		}
 
 		//no item in slot and no inventory loop created,
 		//check if this storage can fit this according to its specific capacity logic
@@ -455,7 +464,7 @@ public class ItemSlot
 	public static void Free(ItemStorage storageToFree)
 	{
 		if (CustomNetworkManager.Instance != null &&
-		    CustomNetworkManager.Instance._isServer)
+			CustomNetworkManager.Instance._isServer)
 		{
 			//destroy all items in the slots
 			foreach (var slot in storageToFree.GetItemSlots())
@@ -556,6 +565,6 @@ public class ItemSlot
 
 	public static NamedSlotFlagged GetFlaggedSlot(NamedSlot slot)
 	{
-		return (NamedSlotFlagged) (1 << (int) slot);
+		return (NamedSlotFlagged)(1 << (int)slot);
 	}
 }
