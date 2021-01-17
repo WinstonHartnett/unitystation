@@ -401,7 +401,8 @@ public class ItemSlot
 			return stackResult;
 		}
 
-		if (itemStorage.GetCombinedItemWeight() > itemStorage.ItemStorageCapacity.MaxCombinedItemWeight)
+		// Check if this inventory hierarchy will be overweight with this addition.
+		if (itemStorage.Weight > itemStorage.ItemStorageCapacity.MaxCombinedItemWeight)
 		{
 			if (examineRecipient)
 			{

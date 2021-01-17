@@ -94,6 +94,9 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 			//ask target playerscript to update shown name.
 			info.ToPlayer.GetComponent<PlayerScript>().RefreshVisibleName();
 		}
+
+		// Notify storage hierarchies of the moved weight.
+		ItemStorage.UpdateMovedWeight(info);
 	}
 
 	private bool HasClothingItem(RegisterPlayer onPlayer, ItemSlot infoToSlot)

@@ -1,5 +1,6 @@
 
 using UnityEngine;
+using Items;
 
 /// <summary>
 /// Main API for modifying inventory. If you need to do something with inventory, check here first.
@@ -174,14 +175,14 @@ public static class Inventory
 		if (toPerform.FromSlot != null && toPerform.FromSlot.Invalid)
 		{
 			Logger.LogErrorFormat("Inventory move attempted with invalid slot {0}. This slot reference should've" +
-			                      " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
+								  " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
 				toPerform.FromSlot);
 			return false;
 		}
 		if (toPerform.ToSlot != null && toPerform.ToSlot.Invalid)
 		{
 			Logger.LogErrorFormat("Inventory move attempted with invalid slot {0}. This slot reference should've" +
-			                      " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
+								  " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
 				toPerform.ToSlot);
 			return false;
 		}
@@ -216,7 +217,7 @@ public static class Inventory
 		if (toSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to transfer {0} to another slot but target slot was null." +
-			                      " Move will not be performed.", Category.Inventory, pickupable.name);
+								  " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
@@ -253,7 +254,7 @@ public static class Inventory
 		if (pickupable.ItemSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to transfer {0} to target slot but item is not in a slot." +
-			                      " transfer will not be performed.", Category.Inventory, pickupable.name);
+								  " transfer will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
@@ -261,14 +262,14 @@ public static class Inventory
 		if (fromSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to transfer {0} to target slot but from slot was null." +
-			                      " transfer will not be performed.", Category.Inventory, pickupable.name);
+								  " transfer will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
 		if (!Validations.CanFit(toSlot, pickupable, NetworkSide.Server, true))
 		{
 			Logger.LogTraceFormat("Attempted to transfer {0} to slot {1} but slot cannot fit this item." +
-			                      " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
+								  " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
 			return false;
 		}
 
@@ -291,7 +292,7 @@ public static class Inventory
 		if (pickupable.ItemSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to remove {0} from inventory but item is not in a slot." +
-			                      " remove will not be performed.", Category.Inventory, pickupable.name);
+								  " remove will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
@@ -299,14 +300,14 @@ public static class Inventory
 		if (fromSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to remove {0} from inventory but from slot was null." +
-			                      " Move will not be performed.", Category.Inventory, pickupable.name);
+								  " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
 		if (fromSlot.Item == null)
 		{
 			Logger.LogTraceFormat("Attempted to remove {0} from inventory but from slot {1} had no item in it." +
-			                      " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
+								  " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
 			return false;
 		}
 
@@ -347,7 +348,7 @@ public static class Inventory
 				if (closetControl == null)
 				{
 					Logger.LogWarningFormat("Dropping from slot {0} while in container {1}, but container type was not recognized. " +
-					                      "Currently only ClosetControl is supported. Please add code to handle this case.", Category.Inventory,
+										  "Currently only ClosetControl is supported. Please add code to handle this case.", Category.Inventory,
 						fromSlot,
 						holderPushPull.parentContainer.name);
 					return false;
@@ -358,7 +359,7 @@ public static class Inventory
 				if (objBehavior == null)
 				{
 					Logger.LogTraceFormat("Dropping object {0} while in container {1}, but dropped object had" +
-					                      " no object behavior. Cannot drop.", Category.Inventory,
+										  " no object behavior. Cannot drop.", Category.Inventory,
 						pickupable,
 						holderPushPull.parentContainer.name);
 					return false;
@@ -425,7 +426,7 @@ public static class Inventory
 		if (pickupable.ItemSlot != null)
 		{
 			Logger.LogTraceFormat("Attempted to add {0} to inventory but item is already in slot {1}." +
-			                      " Move will not be performed.", Category.Inventory, pickupable.name, pickupable.ItemSlot);
+								  " Move will not be performed.", Category.Inventory, pickupable.name, pickupable.ItemSlot);
 			return false;
 		}
 
@@ -433,7 +434,7 @@ public static class Inventory
 		if (toSlot == null)
 		{
 			Logger.LogTraceFormat("Attempted to add {0} to inventory but target slot was null." +
-			                      " Move will not be performed.", Category.Inventory, pickupable.name);
+								  " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
@@ -471,7 +472,7 @@ public static class Inventory
 		if (!Validations.CanFit(toSlot, pickupable, NetworkSide.Server, true))
 		{
 			Logger.LogTraceFormat("Attempted to add {0} to slot {1} but slot cannot fit this item." +
-			                      " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
+								  " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
 			return false;
 		}
 
@@ -514,7 +515,7 @@ public static class Inventory
 			NetworkSide.Client, PlayerManager.LocalPlayer, examineRecipient: PlayerManager.LocalPlayer))
 		{
 			Logger.LogTraceFormat("Client cannot request transfer from {0} to {1} because" +
-			                      " validation failed.", Category.Inventory,
+								  " validation failed.", Category.Inventory,
 				from, to);
 			return;
 		}

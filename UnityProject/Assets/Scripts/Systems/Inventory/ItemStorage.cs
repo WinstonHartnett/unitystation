@@ -59,6 +59,14 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	/// </summary>
 	private readonly HashSet<GameObject> serverObserverPlayers = new HashSet<GameObject>();
 
+	private int weight = 0;
+	/// <summary>
+	/// Combined weight of items in this storage.
+	/// </summary>
+	public int Weight {
+		get => weight;
+	}
+
 	private void Awake()
 	{
 		playerNetworkActions = GetComponent<PlayerNetworkActions>();
@@ -73,6 +81,8 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		{
 			ServerAddObserverPlayer(gameObject);
 		}
+
+		weight = UpdateWeight();
 	}
 
 	public void OnDespawnServer(DespawnInfo info)
@@ -269,7 +279,8 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		var itemStorage = slot.Item.GetComponent<ItemStorage>();
 		if (itemStorage != null)
 		{
-			return itemStorage.GetItemSlots().Concat(new[] { slot });
+			/* return itemStorage.GetItemSlots().Concat(new[] { slot }); */
+			return itemStorage.GetItemSlotTree().Concat(new[] { slot });
 		}
 		else
 		{
@@ -367,32 +378,223 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return GetBestSlotFor(item);
 	}
 
-	// TODO Should this be separated into another function or should it not force an update (at the risk of this being stale)?
-	// TODO Make this work w/ stackables!
 	/// <summary>
 	/// Returns the combined weight of items in this ItemStorage and updates the corresponding class variable.
 	/// This uses the recursive <see cref="GetItemSlotTree()"> so might be prone to perf issues!
 	/// </summary>
-	public int GetCombinedItemWeight()
+	public int UpdateWeight()
 	{
-		var combinedItemWeight = 0;
+		int combinedItemWeight = 0;
 
 		foreach (ItemSlot itemSlot in GetItemSlotTree())
 		{
-			Pickupable item = itemSlot.Item;
+			var item = itemSlot.Item;
 
 			if (item != null)
 			{
-				ItemAttributesV2 itemAttr = item.GetComponent<ItemAttributesV2>();
-				if (itemAttr != null)
-				{
-					int size = (int)itemAttr.Size;
-					combinedItemWeight += size;
-				}
+				var weight = item.GetComponent<ItemAttributesV2>().GetWeight();
+				combinedItemWeight += weight;
 			}
 		}
 
 		return combinedItemWeight;
+	}
+
+	public bool CanFit(Pickupable item)
+	{
+		var itemWeight = item.GetComponent<ItemAttributesV2>()?.GetWeight();
+		if (itemWeight == null) return true;
+		return weight + itemWeight <= itemStorageCapacity.MaxCombinedItemWeight;
+	}
+
+	/// <summary>
+	/// Check if the storage hierarchy this storage is in can accomodate this added weight.
+	/// </summary>
+	public bool CanFitTree(Pickupable item)
+	{
+		var itemAttr = item.GetComponent<ItemAttributesV2>();
+		if (itemAttr == null) return false;
+		var itemWeight = itemAttr.GetWeight();
+
+		return GetItemStorageParentTree()
+			.Any(itemStorage => itemWeight > itemStorage.ItemStorageCapacity.MaxCombinedItemWeight + itemWeight);
+	}
+
+	public static IEnumerable<T> DepthFirst<T>(
+		T node,
+		Func<T, IEnumerable<T>> GetChildren
+	)
+	{
+		var visited = new HashSet<T>();
+		var stack = new Stack<T>();
+
+		stack.Push(node);
+
+		while (stack.Count > 0)
+		{
+			var current = stack.Pop();
+
+			if (!visited.Add(current))
+			{
+				continue;
+			}
+
+			yield return current;
+
+			foreach (var child in GetChildren(current).Where(child => !visited.Contains(child)))
+			{
+				stack.Push(child);
+			}
+		}
+	}
+
+	public static IEnumerable<ItemStorage> GetItemStorageChildren(ItemStorage storage)
+	{
+		return storage.GetItemSlots().Select(slot =>
+		{
+			if (slot.Item == null) return null;
+			return slot.Item.GetComponent<ItemStorage>();
+		}).Where(slot => slot != null);
+	}
+
+	/* public static IEnumerable<ItemSlot> GetSlotChildren(ItemSlot slot) */
+	/* { */
+	/* 	var item = slot.Item; */
+
+	/* 	if (item != null) */
+	/* 	{ */
+	/* 		var storage = item.GetComponent<ItemStorage>(); */
+	/* 		if (storage != null) return storage.GetItemSlots(); */
+	/* 	} */
+
+	/* 	return Enumerable.Empty<ItemSlot>(); */
+	/* } */
+
+	/* public IEnumerable<ItemSlot> GetItemSlotTreeDFS() */
+	/* { */
+	/* 	return GetItemSlots().SelectMany(slot => DepthFirst<ItemSlot>(slot, GetSlotChildren)); */
+	/* } */
+
+	public IEnumerable<ItemStorage> GetItemStorageChildrenTreeDFS()
+	{
+		return DepthFirst(this, GetItemStorageChildren);
+	}
+
+	/// <summary>
+	/// Update the weight of this storage after an inventory move.
+	/// </summary>
+	/// <param name="info">The inventory move information.</param>
+	public static void UpdateMovedWeight(InventoryMove info)
+	{
+		/// <summary>
+		/// Find the next highest storage in this item's inventory hierarchy.
+		/// </summary>
+		ItemStorage GoUp(ItemStorage storage)
+		{
+			return storage.GetComponent<Pickupable>()?.ItemSlot?.ItemStorage ?? null;
+		}
+
+		/// <summary>
+		/// Bump the weights of ItemStorage(s) from the lowest point in the transfer hierarchy (inclusive)
+		/// to the highest (not inclusive) when moving within that transfer hierarchy.
+		/// </summary>
+		void BumpWithin(int itemWeight, ItemSlot from, ItemStorage to)
+		{
+			int amount;
+			ItemStorage toBump, toEnd;
+
+			// If the storage we're moving the item into is above us, we need to remove weight from
+			// lower storages.
+			if (to.GetItemSlots().Contains(from))
+			{
+				amount = -itemWeight;
+				toBump = from.ItemStorage;
+				toEnd = to;
+			}
+			// Likewise, if the storage we're moving the item into is below us, we n
+			else
+			{
+				amount = itemWeight;
+				// We flip these so that the highest storage is not inclusive in the while loop.
+				toBump = to;
+				toEnd = from.ItemStorage;
+			}
+
+			while (toBump != null && toBump != toEnd)
+			{
+				toBump.weight += amount;
+				toBump = GoUp(toBump);
+			}
+		}
+
+		/// <summary>
+		/// Bump the weights of items in an add-to-storage and/or remove-from-storage operation.
+		/// Do note use this when the items are being moved within the same hierarchy (see BumpWithin above).
+		/// </summary>
+		void Bump(int itemWeight, ItemStorage from = null, ItemStorage to = null)
+		{
+			ItemStorage toBump;
+
+			if (from != null)
+			{
+				toBump = from;
+
+				while (toBump != null)
+				{
+					/* toBump.SetWeight(toBump.Weight - itemWeight); */
+					toBump = GoUp(toBump);
+				}
+			}
+
+			if (to != null)
+			{
+				toBump = to;
+
+				while (toBump != null)
+				{
+					/* toBump.SetWeight(toBump.Weight + itemWeight); */
+					toBump = GoUp(toBump);
+				}
+			}
+		}
+
+		var toSlot = info.ToSlot;
+		var toStorage = toSlot.ItemStorage;
+		var toRoot = toStorage.GetRootStorage();
+
+		var fromSlot = info.FromSlot;
+		var fromStorage = fromSlot.ItemStorage;
+		var fromRoot = fromStorage.GetRootStorage();
+
+		var movedWeight = info.MovedObject.GetComponent<ItemAttributesV2>().GetWeight();
+
+		if (toRoot == fromRoot)
+			// If we're moving within the same storage hierarchy.
+			BumpWithin(movedWeight, fromSlot, toStorage);
+		else
+			// We're moving something into and/or out of two different storage hierarchies.
+			Bump(movedWeight, fromStorage, toStorage);
+	}
+
+	public ItemStorage GetItemStorageParent()
+	{
+		var slot = GetComponent<Pickupable>()?.ItemSlot;
+		if (slot == null) return null;
+		return slot.ItemStorage;
+	}
+
+	/// <summary>
+	/// Iterator that gets parent storages if this storage is in a hierarchy.
+	/// Includes this storage.
+	/// </summary>
+	public IEnumerable<ItemStorage> GetItemStorageParentTree()
+	{
+		var storage = this;
+		while (storage != null)
+		{
+			yield return storage;
+			storage = GetItemStorageParent();
+		}
 	}
 
 	/// <summary>

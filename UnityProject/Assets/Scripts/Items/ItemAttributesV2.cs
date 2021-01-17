@@ -299,7 +299,16 @@ namespace Items
 			if (clothing != null) clothing.AssignPaletteToSprites(this.ItemSprites.Palette);
 		}
 
-
+		/// <summary>
+		/// Get the corresponding weight of an item with these attributes, including the weight from stackables.
+		/// </summary>
+		/// <returns>Returns 0 if the item's size is None.</returns>
+		public int GetWeight() {
+			var weight = (int)size;
+			var stackable = gameObject.GetComponent<Stackable>();
+			if (stackable != null) weight *= stackable.Amount;
+			return weight;
+		}
 	}
 
 	public enum SoundItemSettings
